@@ -18,7 +18,16 @@ def load_model():
     if not os.path.exists(MODEL_PATH):
         return None
     with open(MODEL_PATH, 'rb') as f:
-        return pickle.load(f)
+        data = pickle.load(f)
+    
+    # Fix for scikit-learn version mismatch (monotonic_cst error)
+    if data and 'model' in data:
+        model = data['model']
+        if hasattr(model, 'estimators_'):
+            for tree in model.estimators_:
+                if not hasattr(tree, 'monotonic_cst'):
+                    tree.monotonic_cst = None
+    return data
 
 data = load_model()
 
