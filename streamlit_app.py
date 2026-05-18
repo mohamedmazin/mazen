@@ -91,6 +91,15 @@ else:
             
             # Get probabilities
             probs = model.predict_proba(input_df)[0]
+            
+            # Ensure probabilities are normalized and in [0, 1] range
+            if np.max(probs) > 1.0 or np.any(probs < 0):
+                # If values are scores rather than probabilities, normalize them
+                probs = (probs - np.min(probs)) / (np.max(probs) - np.min(probs) + 1e-6)
+            
+            # Re-normalize to ensure they sum to 1 (safety measure)
+            probs = probs / (np.sum(probs) + 1e-6)
+            
             top_indices = np.argsort(probs)[::-1][:5]
             
             # Get labels
@@ -100,11 +109,14 @@ else:
             
             for i, idx in enumerate(top_indices):
                 track_name = le_target.inverse_transform([idx])[0]
-                confidence = probs[idx]
+                confidence = float(probs[idx])
+                
+                # Clip confidence to [0.0, 1.0] for st.progress
+                display_confidence = max(0.0, min(1.0, confidence))
                 
                 # Progress bar for confidence
                 st.subheader(f"{i+1}. {track_name}")
-                st.progress(float(confidence))
+                st.progress(display_confidence)
                 st.write(f"Confidence: {confidence:.2%}")
                 
         except Exception as e:
