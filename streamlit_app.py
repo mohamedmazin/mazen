@@ -43,6 +43,46 @@ else:
     st.header("📊 Skills & Experience (Rate from 0 to 9)")
     st.info("اختر مستواك في كل مهارة (0 تعني لا يوجد خبرة، 9 تعني خبير)")
     
+    # --- API Implementation for Streamlit ---
+    # This allows other websites to get recommendations via URL parameters
+    query_params = st.query_params
+    if query_params:
+        try:
+            # If parameters are provided in URL, process them and show result immediately
+            api_inputs = {}
+            for col in features:
+                # Get from URL or default to 5
+                val = query_params.get(col, "5")
+                api_inputs[col] = val
+            
+            # Preprocess
+            processed_api = {}
+            for col in features:
+                le = encoders[col]
+                val = str(api_inputs[col])
+                if val not in le.classes_:
+                    val = le.classes_[0]
+                processed_api[col] = le.transform([val])[0]
+            
+            input_df_api = pd.DataFrame([processed_api])[features]
+            probs_api = model.predict_proba(input_df_api)[0]
+            
+            # Re-normalize for safety
+            if np.max(probs_api) > 1.0 or np.any(probs_api < 0):
+                probs_api = (probs_api - np.min(probs_api)) / (np.max(probs_api) - np.min(probs_api) + 1e-6)
+            probs_api = probs_api / (np.sum(probs_api) + 1e-6)
+            
+            # Show JSON response if a special flag is set
+            if query_params.get("output") == "json":
+                le_target = encoders[target_col]
+                top_indices_api = np.argsort(probs_api)[::-1][:5]
+                results = [{"track": le_target.inverse_transform([idx])[0], "confidence": float(probs_api[idx])} for idx in top_indices_api]
+                st.json({"success": True, "recommendations": results})
+                st.stop() # Stop here if it's a JSON request
+        except Exception as e:
+            st.error(f"API Error: {e}")
+    # --- End of API Implementation ---
+
     inputs = {}
     
     # Numeric features
