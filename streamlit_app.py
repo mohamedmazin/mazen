@@ -76,7 +76,15 @@ else:
             if query_params.get("output") == "json":
                 le_target = encoders[target_col]
                 top_indices_api = np.argsort(probs_api)[::-1][:5]
-                results = [{"track": le_target.inverse_transform([idx])[0], "confidence": float(probs_api[idx])} for idx in top_indices_api]
+                results = []
+                for idx in top_indices_api:
+                    raw_name = le_target.inverse_transform([idx])[0]
+                    # Format name: replace '-' with ' ' and title case
+                    formatted_name = raw_name.replace('-', ' ').title()
+                    results.append({
+                        "track": formatted_name, 
+                        "confidence": float(probs_api[idx])
+                    })
                 st.json({"success": True, "recommendations": results})
                 st.stop() # Stop here if it's a JSON request
         except Exception as e:
@@ -148,7 +156,9 @@ else:
             st.header("🎯 Top 5 Recommended Tracks")
             
             for i, idx in enumerate(top_indices):
-                track_name = le_target.inverse_transform([idx])[0]
+                raw_track_name = le_target.inverse_transform([idx])[0]
+                # Format name for UI: replace '-' with ' ' and title case
+                track_name = raw_track_name.replace('-', ' ').title()
                 confidence = float(probs[idx])
                 
                 # Clip confidence to [0.0, 1.0] for st.progress
