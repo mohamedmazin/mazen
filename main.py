@@ -28,6 +28,15 @@ if not os.path.exists(MODEL_PATH):
 
 with open(MODEL_PATH, 'rb') as f:
     data = pickle.load(f)
+    
+    # Fix for scikit-learn version mismatch (monotonic_cst error)
+    if data and 'model' in data:
+        model_obj = data['model']
+        if hasattr(model_obj, 'estimators_'):
+            for tree in model_obj.estimators_:
+                if not hasattr(tree, 'monotonic_cst'):
+                    tree.monotonic_cst = None
+    
     model = data['model']
     encoders = data['encoders']
     features = data['features']
