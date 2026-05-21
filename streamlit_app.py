@@ -7,8 +7,8 @@ import os
 # Page configuration
 st.set_page_config(page_title="Track Recommender AI", layout="wide")
 
-st.title("🚀 Career Track Recommender AI")
-st.markdown("ادخل مهاراتك وخبراتك للحصول على أفضل الترشيحات للتراكات البرمجية.")
+st.title("Track Recommender")
+st.markdown("Enter Your Answer to Get Recommended Tracks")
 
 # Load model and encoders
 MODEL_PATH = 'recommender_model.pkl'
@@ -41,8 +41,6 @@ else:
 
     # Create UI for inputs
     st.header("📊 Skills & Experience (Rate from 0 to 9)")
-    st.info("اختر مستواك في كل مهارة (0 تعني لا يوجد خبرة، 9 تعني خبير)")
-    
     # --- API Implementation for Streamlit ---
     # This allows other websites to get recommendations via URL parameters
     query_params = st.query_params
@@ -173,4 +171,3 @@ else:
             st.error(f"Error during prediction: {e}")
 
 st.sidebar.markdown("---")
-st.sidebar.info("هذا الموديل مدرب على الداتا سيت المحدثة ليناسب تراكات المشروع.")
