@@ -82,15 +82,23 @@ def recommend(interests: UserInterests):
         input_dict = interests.model_dump()
         
         # Map pydantic field names back to dataset column names
+        # Also handle potential case sensitivity issues by normalizing keys
         final_dict = {}
         for k, v in input_dict.items():
+            # Handle special characters and ensure mapping
             col_name = k.replace('C_plus_plus', 'C++').replace('C_sharp', 'C#')
             final_dict[col_name] = v
             
         # Create a list for prediction in the exact order of features
         processed_values = []
         for col in features:
+            # Try to get value with exact match, or case-insensitive if needed
             val = final_dict.get(col)
+            if val is None:
+                # Fallback for common naming variations
+                normalized_final_dict = {k.lower().replace(' ', '_'): v for k, v in final_dict.items()}
+                normalized_col = col.lower().replace(' ', '_')
+                val = normalized_final_dict.get(normalized_col, 5) # Default to 5 if not found
             
             # If it's a categorical feature, encode it
             if col in encoders and hasattr(encoders[col], 'classes_'):
@@ -101,7 +109,10 @@ def recommend(interests: UserInterests):
                 processed_values.append(le.transform([val_str])[0])
             else:
                 # Numerical feature
-                processed_values.append(int(val if val is not None else 0))
+                try:
+                    processed_values.append(int(val))
+                except:
+                    processed_values.append(5)
             
         # Create DataFrame with correct feature order
         input_df = pd.DataFrame([processed_values], columns=features)
@@ -109,7 +120,7 @@ def recommend(interests: UserInterests):
         # Get probabilities
         probs = model.predict_proba(input_df)[0]
         
-        # Ensure probabilities are normalized and in [0, 1] range (Fix for inconsistent model outputs)
+        # Ensure probabilities are normalized and in [0, 1] range
         if np.max(probs) > 1.0 or np.any(probs < 0):
             probs = (probs - np.min(probs)) / (np.max(probs) - np.min(probs) + 1e-6)
         probs = probs / (np.sum(probs) + 1e-6)
@@ -124,9 +135,14 @@ def recommend(interests: UserInterests):
             raw_name = le_target.inverse_transform([idx])[0]
             # Format name: replace '-' with ' ' and title case
             formatted_name = raw_name.replace('-', ' ').title()
+            
+            # Formatting confidence as percentage string like in streamlit
+            confidence_val = float(probs[idx])
+            formatted_confidence = f"{confidence_val:.2%}"
+            
             recommendations.append({
                 "track": formatted_name,
-                "confidence": f"{float(probs[idx]):.2%}"
+                "confidence": formatted_confidence
             })
             
         return {
