@@ -79,7 +79,7 @@ def read_root():
 def recommend(interests: UserInterests):
     try:
         # Convert input to dictionary
-        input_dict = interests.dict()
+        input_dict = interests.model_dump()
         
         # Map pydantic field names back to dataset column names
         final_dict = {}
@@ -87,16 +87,24 @@ def recommend(interests: UserInterests):
             col_name = k.replace('C_plus_plus', 'C++').replace('C_sharp', 'C#')
             final_dict[col_name] = v
             
-        # Preprocess features using saved encoders
+        # Create a list for prediction in the exact order of features
+        processed_values = []
         for col in features:
-            le = encoders[col]
-            val = str(final_dict.get(col, "0"))
-            if val not in le.classes_:
-                val = le.classes_[0]
-            final_dict[col] = le.transform([val])[0]
+            val = final_dict.get(col)
+            
+            # If it's a categorical feature, encode it
+            if col in encoders and hasattr(encoders[col], 'classes_'):
+                le = encoders[col]
+                val_str = str(val)
+                if val_str not in le.classes_:
+                    val_str = le.classes_[0]
+                processed_values.append(le.transform([val_str])[0])
+            else:
+                # Numerical feature
+                processed_values.append(int(val if val is not None else 0))
             
         # Create DataFrame with correct feature order
-        input_df = pd.DataFrame([final_dict])[features]
+        input_df = pd.DataFrame([processed_values], columns=features)
         
         # Get probabilities
         probs = model.predict_proba(input_df)[0]
@@ -118,7 +126,7 @@ def recommend(interests: UserInterests):
             formatted_name = raw_name.replace('-', ' ').title()
             recommendations.append({
                 "track": formatted_name,
-                "confidence": round(float(probs[idx]), 4)
+                "confidence": f"{float(probs[idx]):.2%}"
             })
             
         return {
