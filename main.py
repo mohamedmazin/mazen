@@ -101,6 +101,11 @@ def recommend(interests: UserInterests):
         # Get probabilities
         probs = model.predict_proba(input_df)[0]
         
+        # Ensure probabilities are normalized and in [0, 1] range (Fix for inconsistent model outputs)
+        if np.max(probs) > 1.0 or np.any(probs < 0):
+            probs = (probs - np.min(probs)) / (np.max(probs) - np.min(probs) + 1e-6)
+        probs = probs / (np.sum(probs) + 1e-6)
+        
         # Get top 5 indices
         top_indices = np.argsort(probs)[::-1][:5]
         
@@ -108,8 +113,11 @@ def recommend(interests: UserInterests):
         le_target = encoders[target_col]
         recommendations = []
         for idx in top_indices:
+            raw_name = le_target.inverse_transform([idx])[0]
+            # Format name: replace '-' with ' ' and title case
+            formatted_name = raw_name.replace('-', ' ').title()
             recommendations.append({
-                "track": le_target.inverse_transform([idx])[0],
+                "track": formatted_name,
                 "confidence": round(float(probs[idx]), 4)
             })
             
